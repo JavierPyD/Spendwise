@@ -149,6 +149,9 @@ export default function SettingsScreen() {
           <Text style={styles.cardTitle}>About</Text>
           <Text style={styles.aboutText}>SpendWise v1.0</Text>
           <Text style={styles.aboutText}>Your personal spend intelligence companion.</Text>
+          <Text style={[styles.aboutText, { marginTop: 12, fontWeight: '600', color: '#555' }]}>
+            App developed by JavierPyD
+          </Text>
         </View>
       </ScrollView>
     </TouchableWithoutFeedback>

@@ -36,7 +36,7 @@ export default function TabLayout() {
         name="budgets"
         options={{
           title: 'Budgets',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.pie" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="flag.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -44,6 +44,13 @@ export default function TabLayout() {
         options={{
           title: 'Insights',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="lightbulb" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="charts"
+        options={{
+          title: 'Charts',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.pie" color={color} />,
         }}
       />
     </Tabs>
