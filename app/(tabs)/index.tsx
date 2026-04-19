@@ -1,154 +1,189 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Keyboard, TouchableWithoutFeedback, ScrollView } from 'react-native';
-import { useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  Keyboard,
+  TouchableWithoutFeedback,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import { useState } from 'react';
+import { useApp } from '@/context/AppContext';
+import { CATEGORIES, Category } from '@/types';
 
-const CATEGORIES = ['Services', 'Food & Drinks', 'Transport', 'Shopping', 'Health', 'Entertainment'];
-
-export default function HomeScreen() {
+export default function DashboardScreen() {
+  const { expenses, budgets, addExpense, isLoading } = useApp();
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Services');
-  const [expenses, setExpenses] = useState([]);
+  const [merchant, setMerchant] = useState('');
+  const [category, setCategory] = useState<Category>('Food & Drinks');
 
-  useEffect(() => { 
-    loadExpenses(); 
-  }, []);
+  const now = new Date();
+  const thisMonthExpenses = expenses.filter((e) => {
+    const d = new Date(e.timestamp);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const totalThisMonth = thisMonthExpenses.reduce((s, e) => s + e.amount, 0);
+  const todayExpenses = expenses.filter((e) => {
+    const d = new Date(e.timestamp);
+    const today = new Date();
+    return (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  });
+  const totalToday = todayExpenses.reduce((s, e) => s + e.amount, 0);
 
-  const loadExpenses = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('@expenses_key');
-      if (saved) setExpenses(JSON.parse(saved));
-    } catch (e) { 
-      console.error("Error loading data", e); 
-    }
-  };
+  const getCategoryTotal = (cat: Category) =>
+    thisMonthExpenses.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0);
 
-  const addExpense = async () => {
-    if (!amount || !description) return;
-    const newExpense = {
-      id: Date.now().toString(),
-      amount: parseFloat(amount).toFixed(2),
-      description,
+  const getBudgetForCategory = (cat: Category) =>
+    budgets.find((b) => b.category === cat);
+
+  const handleAdd = async () => {
+    const parsed = parseFloat(amount);
+    if (!parsed || !description.trim()) return;
+    await addExpense({
+      amount: parsed,
+      description: description.trim(),
+      merchant: merchant.trim() || undefined,
       category,
-      date: new Date().toLocaleDateString()
-    };
-    const updated = [newExpense, ...expenses];
-    setExpenses(updated);
-    try {
-      await AsyncStorage.setItem('@expenses_key', JSON.stringify(updated));
-    } catch (e) {
-      console.error("Error saving data", e);
-    }
-    setAmount(''); 
-    setDescription(''); 
+      date: new Date().toISOString(),
+    });
+    setAmount('');
+    setDescription('');
+    setMerchant('');
     Keyboard.dismiss();
   };
 
-  const deleteExpense = async (id) => {
-    const updatedExpenses = expenses.filter(expense => expense.id !== id);
-    setExpenses(updatedExpenses);
-    try {
-      await AsyncStorage.setItem('@expenses_key', JSON.stringify(updatedExpenses));
-    } catch (e) {
-      console.error("Error deleting data", e);
-    }
-  };
-
-  const totalAmount = expenses.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-
-  const getCategoryTotal = (cat) => {
-    return expenses
-      .filter(e => e.category === cat)
-      .reduce((sum, item) => sum + parseFloat(item.amount), 0);
-  };
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={{ flex: 1, backgroundColor: '#F0F2F5' }}>
-        <ScrollView 
-          contentContainerStyle={{ alignItems: 'center', paddingTop: 40, paddingBottom: 40 }}
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.headerTitle}>SpendWise</Text>
+          <Text style={styles.header}>SpendWise</Text>
 
-          {/* Resumen Total */}
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>TOTAL SPENT</Text>
-            <Text style={styles.summaryValue}>${totalAmount.toFixed(2)}</Text>
+          {/* Summary cards */}
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryCard, { backgroundColor: '#1A1A1A' }]}>
+              <Text style={styles.summaryLabel}>THIS MONTH</Text>
+              <Text style={styles.summaryValue}>${totalThisMonth.toFixed(2)}</Text>
+            </View>
+            <View style={[styles.summaryCard, { backgroundColor: '#007AFF' }]}>
+              <Text style={styles.summaryLabel}>TODAY</Text>
+              <Text style={styles.summaryValue}>${totalToday.toFixed(2)}</Text>
+            </View>
           </View>
 
-          {/* Gráfica de Barras */}
-          <View style={styles.chartCard}>
-            <Text style={styles.cardTitle}>Spending by Category</Text>
-            {CATEGORIES.map(cat => {
+          {/* Category bar chart */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>This Month by Category</Text>
+            {CATEGORIES.map((cat) => {
               const catTotal = getCategoryTotal(cat);
-              const percentage = totalAmount > 0 ? (catTotal / totalAmount) : 0;
+              if (catTotal === 0) return null;
+              const budget = getBudgetForCategory(cat);
+              const pct = budget ? Math.min(catTotal / budget.monthlyLimit, 1) : 0;
+              const barPct = totalThisMonth > 0 ? catTotal / totalThisMonth : 0;
+              const barColor = budget
+                ? pct >= 1
+                  ? '#FF3B30'
+                  : pct >= 0.8
+                  ? '#FF9500'
+                  : '#34C759'
+                : '#007AFF';
               return (
                 <View key={cat} style={styles.chartRow}>
-                  <Text style={styles.chartText}>{cat}</Text>
-                  <View style={styles.barBackground}>
-                    <View style={[styles.barFill, { width: `${percentage * 100}%` }]} />
+                  <Text style={styles.chartLabel}>{cat}</Text>
+                  <View style={styles.barBg}>
+                    <View style={[styles.barFill, { width: `${barPct * 100}%`, backgroundColor: barColor }]} />
                   </View>
-                  <Text style={styles.chartAmount}>${catTotal.toFixed(0)}</Text>
+                  <Text style={styles.chartAmt}>${catTotal.toFixed(0)}</Text>
                 </View>
               );
             })}
+            {thisMonthExpenses.length === 0 && (
+              <Text style={styles.emptyText}>No expenses this month yet.</Text>
+            )}
           </View>
 
-          {/* Formulario */}
+          {/* Add expense form */}
           <View style={styles.card}>
+            <Text style={styles.cardTitle}>Log Expense</Text>
             <View style={styles.row}>
-              <TextInput 
-                style={[styles.input, { flex: 1, marginRight: 10 }]} 
-                placeholder="Amount" 
-                keyboardType="numeric" 
-                value={amount} 
-                onChangeText={setAmount} 
+              <TextInput
+                style={[styles.input, { flex: 1, marginRight: 8 }]}
+                placeholder="Amount"
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={setAmount}
+                placeholderTextColor="#999"
               />
-              <View style={styles.categoryPicker}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {CATEGORIES.map(cat => (
-                    <TouchableOpacity 
-                      key={cat} 
-                      onPress={() => setCategory(cat)} 
-                      style={[styles.catBtn, category === cat && styles.catBtnActive]}
-                    >
-                      <Text style={[styles.catBtnText, category === cat && styles.catBtnTextActive]}>{cat}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+              <TextInput
+                style={[styles.input, { flex: 2 }]}
+                placeholder="Description"
+                value={description}
+                onChangeText={setDescription}
+                placeholderTextColor="#999"
+              />
             </View>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Description" 
-              value={description} 
-              onChangeText={setDescription} 
+            <TextInput
+              style={[styles.input, { marginBottom: 10 }]}
+              placeholder="Merchant (optional)"
+              value={merchant}
+              onChangeText={setMerchant}
+              placeholderTextColor="#999"
             />
-            <TouchableOpacity style={styles.button} onPress={addExpense}>
-              <Text style={styles.buttonText}>Log Expense</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => setCategory(cat)}
+                  style={[styles.catBtn, category === cat && styles.catBtnActive]}
+                >
+                  <Text style={[styles.catBtnText, category === cat && styles.catBtnTextActive]}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
+              <Text style={styles.addBtnText}>+ Log Expense</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Lista de Gastos (Usando .map para que el scroll funcione bien) */}
-          <View style={{ width: '90%' }}>
-            {expenses.map((item) => (
-              <View key={item.id} style={styles.expenseItem}>
+          {/* Recent expenses */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Recent</Text>
+            {expenses.slice(0, 5).map((e) => (
+              <View key={e.id} style={styles.expenseRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.itemDescription}>{item.description}</Text>
-                  <Text style={styles.itemCategory}>{item.category} • {item.date}</Text>
+                  <Text style={styles.expenseDesc}>{e.description}</Text>
+                  <Text style={styles.expenseMeta}>
+                    {e.category}
+                    {e.merchant ? ` · ${e.merchant}` : ''} ·{' '}
+                    {new Date(e.timestamp).toLocaleDateString()}
+                  </Text>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.itemAmount}>${item.amount}</Text>
-                  <TouchableOpacity 
-                    onPress={() => deleteExpense(item.id)}
-                    style={styles.deleteButton}
-                  >
-                    <Text style={styles.deleteButtonText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.expenseAmt}>${e.amount.toFixed(2)}</Text>
               </View>
             ))}
+            {expenses.length === 0 && (
+              <Text style={styles.emptyText}>No expenses logged yet.</Text>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -157,31 +192,32 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerTitle: { fontSize: 28, fontWeight: '800', marginBottom: 10 },
-  summaryCard: { backgroundColor: '#1A1A1A', width: '90%', padding: 20, borderRadius: 20, alignItems: 'center', marginBottom: 15 },
-  summaryLabel: { color: '#AAA', fontSize: 10, fontWeight: '600' },
-  summaryValue: { color: '#FFF', fontSize: 36, fontWeight: '800' },
-  chartCard: { backgroundColor: '#FFF', width: '90%', padding: 15, borderRadius: 20, marginBottom: 15, elevation: 3 },
-  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10, color: '#333' },
+  container: { flex: 1, backgroundColor: '#F0F2F5' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  scroll: { alignItems: 'center', paddingTop: 52, paddingBottom: 40 },
+  header: { fontSize: 28, fontWeight: '800', marginBottom: 16, color: '#1A1A1A' },
+  summaryRow: { flexDirection: 'row', width: '90%', gap: 10, marginBottom: 14 },
+  summaryCard: { flex: 1, padding: 16, borderRadius: 18, alignItems: 'center' },
+  summaryLabel: { color: '#AAA', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  summaryValue: { color: '#FFF', fontSize: 26, fontWeight: '800', marginTop: 4 },
+  card: { backgroundColor: '#FFF', width: '90%', padding: 16, borderRadius: 20, marginBottom: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A1A', marginBottom: 12 },
   chartRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  chartText: { width: 85, fontSize: 11, color: '#666' },
-  barBackground: { flex: 1, height: 8, backgroundColor: '#EEE', borderRadius: 4, marginHorizontal: 10 },
-  barFill: { height: '100%', backgroundColor: '#007AFF', borderRadius: 4 },
-  chartAmount: { width: 40, fontSize: 11, fontWeight: '600', textAlign: 'right' },
-  card: { backgroundColor: '#fff', width: '90%', padding: 15, borderRadius: 20, elevation: 5, marginBottom: 15 },
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  input: { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#EEE' },
-  categoryPicker: { flex: 2, height: 40 },
-  catBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#EEE', marginRight: 5, height: 35 },
+  chartLabel: { width: 90, fontSize: 11, color: '#555' },
+  barBg: { flex: 1, height: 8, backgroundColor: '#EEE', borderRadius: 4, marginHorizontal: 8 },
+  barFill: { height: '100%', borderRadius: 4 },
+  chartAmt: { width: 44, fontSize: 11, fontWeight: '600', textAlign: 'right', color: '#333' },
+  row: { flexDirection: 'row', marginBottom: 10 },
+  input: { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#EEE', fontSize: 14, color: '#1A1A1A' },
+  catBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: '#EEE', marginRight: 6 },
   catBtnActive: { backgroundColor: '#007AFF' },
-  catBtnText: { fontSize: 12, color: '#666' },
-  catBtnTextActive: { color: '#FFF', fontWeight: 'bold' },
-  button: { backgroundColor: '#007AFF', padding: 12, borderRadius: 12, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-  expenseItem: { backgroundColor: '#fff', padding: 12, borderRadius: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderLeftWidth: 5, borderLeftColor: '#007AFF' },
-  itemDescription: { fontSize: 14, fontWeight: '600' },
-  itemCategory: { fontSize: 11, color: '#999' },
-  itemAmount: { fontSize: 16, fontWeight: 'bold', color: '#2ecc71' },
-  deleteButton: { marginTop: 5, paddingVertical: 4, paddingHorizontal: 10, backgroundColor: '#FF3B30', borderRadius: 8 },
-  deleteButtonText: { color: '#FFF', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
+  catBtnText: { fontSize: 12, color: '#555' },
+  catBtnTextActive: { color: '#FFF', fontWeight: '700' },
+  addBtn: { backgroundColor: '#007AFF', padding: 13, borderRadius: 12, alignItems: 'center' },
+  addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  expenseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  expenseDesc: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
+  expenseMeta: { fontSize: 11, color: '#999', marginTop: 2 },
+  expenseAmt: { fontSize: 15, fontWeight: '700', color: '#007AFF' },
+  emptyText: { color: '#AAA', fontSize: 13, textAlign: 'center', paddingVertical: 10 },
 });
