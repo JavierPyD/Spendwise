@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { CATEGORIES, Category } from '@/types';
 import * as Storage from '@/utils/storage';
 import { useApp } from '@/context/AppContext';
+import DatePickerField from '@/components/DatePickerField';
 
 const { width: W } = Dimensions.get('window');
 
@@ -253,12 +254,11 @@ export default function OnboardingScreen() {
               />
 
               <Text style={styles.fieldLabel}>Target date (optional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
+              <DatePickerField
                 value={goalDate}
-                onChangeText={setGoalDate}
-                placeholderTextColor="#AAA"
+                onChange={setGoalDate}
+                placeholder="Pick a target date (optional)"
+                minDate={new Date()}
               />
             </View>
           )}

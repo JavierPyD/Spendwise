@@ -12,6 +12,7 @@ import {
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES, Category, Budget } from '@/types';
+import DatePickerField from '@/components/DatePickerField';
 
 export default function BudgetsScreen() {
   const { expenses, budgets, goals, setBudget, removeBudget, addGoal, updateGoal, deleteGoal } = useApp();
@@ -204,7 +205,13 @@ export default function BudgetsScreen() {
               <TextInput style={styles.input} placeholder="Goal name" value={goalName} onChangeText={setGoalName} />
               <TextInput style={styles.input} placeholder="Target amount ($)" keyboardType="numeric" value={goalTarget} onChangeText={setGoalTarget} />
               <TextInput style={styles.input} placeholder="Already saved ($)" keyboardType="numeric" value={goalCurrent} onChangeText={setGoalCurrent} />
-              <TextInput style={styles.input} placeholder="Target date (YYYY-MM-DD, optional)" value={goalDate} onChangeText={setGoalDate} />
+              <DatePickerField
+                label="Target date"
+                value={goalDate}
+                onChange={setGoalDate}
+                placeholder="Pick a target date (optional)"
+                minDate={new Date()}
+              />
               <View style={styles.modalActions}>
                 <TouchableOpacity onPress={() => setShowGoalModal(false)} style={styles.cancelBtn}>
                   <Text style={styles.cancelText}>Cancel</Text>
