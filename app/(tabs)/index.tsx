@@ -1,18 +1,14 @@
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  Keyboard,
-  TouchableWithoutFeedback,
-  ScrollView,
-  ActivityIndicator,
+  StyleSheet, Text, View, TextInput, TouchableOpacity,
+  Keyboard, TouchableWithoutFeedback, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES, Category } from '@/types';
+import { Palette } from '@/constants/theme';
+
+const P = Palette;
 
 export default function DashboardScreen() {
   const { expenses, budgets, addExpense, isLoading } = useApp();
@@ -30,20 +26,15 @@ export default function DashboardScreen() {
   const totalThisMonth = thisMonthExpenses.reduce((s, e) => s + e.amount, 0);
   const todayExpenses = expenses.filter((e) => {
     const d = new Date(e.timestamp);
-    const today = new Date();
-    return (
-      d.getDate() === today.getDate() &&
-      d.getMonth() === today.getMonth() &&
-      d.getFullYear() === today.getFullYear()
-    );
+    const t = new Date();
+    return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
   });
   const totalToday = todayExpenses.reduce((s, e) => s + e.amount, 0);
 
   const getCategoryTotal = (cat: Category) =>
     thisMonthExpenses.filter((e) => e.category === cat).reduce((s, e) => s + e.amount, 0);
 
-  const getBudgetForCategory = (cat: Category) =>
-    budgets.find((b) => b.category === cat);
+  const getBudget = (cat: Category) => budgets.find((b) => b.category === cat);
 
   const handleAdd = async () => {
     const parsed = parseFloat(amount);
@@ -55,30 +46,25 @@ export default function DashboardScreen() {
       category,
       date: new Date().toISOString(),
     });
-    setAmount('');
-    setDescription('');
-    setMerchant('');
+    setAmount(''); setDescription(''); setMerchant('');
     Keyboard.dismiss();
   };
 
   if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
+    return <View style={styles.center}><ActivityIndicator size="large" color={P.blueAccent} /></View>;
   }
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+          {/* Header */}
           <View style={styles.headerRow}>
-            <Text style={styles.header}>SpendWise</Text>
+            <View>
+              <Text style={styles.appName}>SpendWise</Text>
+              <Text style={styles.appSub}>Your spend intelligence</Text>
+            </View>
             <TouchableOpacity onPress={() => router.push('/settings')} style={styles.gearBtn}>
               <Text style={styles.gearIcon}>⚙️</Text>
             </TouchableOpacity>
@@ -86,32 +72,28 @@ export default function DashboardScreen() {
 
           {/* Summary cards */}
           <View style={styles.summaryRow}>
-            <View style={[styles.summaryCard, { backgroundColor: '#1A1A1A' }]}>
+            <View style={[styles.summaryCard, { backgroundColor: P.navyDeep }]}>
               <Text style={styles.summaryLabel}>THIS MONTH</Text>
               <Text style={styles.summaryValue}>${totalThisMonth.toFixed(2)}</Text>
             </View>
-            <View style={[styles.summaryCard, { backgroundColor: '#007AFF' }]}>
+            <View style={[styles.summaryCard, { backgroundColor: P.rose }]}>
               <Text style={styles.summaryLabel}>TODAY</Text>
               <Text style={styles.summaryValue}>${totalToday.toFixed(2)}</Text>
             </View>
           </View>
 
-          {/* Category bar chart */}
+          {/* Category chart */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>This Month by Category</Text>
             {CATEGORIES.map((cat) => {
               const catTotal = getCategoryTotal(cat);
               if (catTotal === 0) return null;
-              const budget = getBudgetForCategory(cat);
+              const budget = getBudget(cat);
               const pct = budget ? Math.min(catTotal / budget.monthlyLimit, 1) : 0;
               const barPct = totalThisMonth > 0 ? catTotal / totalThisMonth : 0;
               const barColor = budget
-                ? pct >= 1
-                  ? '#FF3B30'
-                  : pct >= 0.8
-                  ? '#FF9500'
-                  : '#34C759'
-                : '#007AFF';
+                ? pct >= 1 ? P.danger : pct >= 0.8 ? P.warning : P.success
+                : P.blueAccent;
               return (
                 <View key={cat} style={styles.chartRow}>
                   <Text style={styles.chartLabel}>{cat}</Text>
@@ -122,48 +104,21 @@ export default function DashboardScreen() {
                 </View>
               );
             })}
-            {thisMonthExpenses.length === 0 && (
-              <Text style={styles.emptyText}>No expenses this month yet.</Text>
-            )}
+            {thisMonthExpenses.length === 0 && <Text style={styles.emptyText}>No expenses this month yet.</Text>}
           </View>
 
-          {/* Add expense form */}
+          {/* Log expense */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Log Expense</Text>
             <View style={styles.row}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginRight: 8 }]}
-                placeholder="Amount"
-                keyboardType="numeric"
-                value={amount}
-                onChangeText={setAmount}
-                placeholderTextColor="#999"
-              />
-              <TextInput
-                style={[styles.input, { flex: 2 }]}
-                placeholder="Description"
-                value={description}
-                onChangeText={setDescription}
-                placeholderTextColor="#999"
-              />
+              <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Amount" keyboardType="numeric" value={amount} onChangeText={setAmount} placeholderTextColor={P.textMuted} />
+              <TextInput style={[styles.input, { flex: 2 }]} placeholder="Description" value={description} onChangeText={setDescription} placeholderTextColor={P.textMuted} />
             </View>
-            <TextInput
-              style={[styles.input, { marginBottom: 10 }]}
-              placeholder="Merchant (optional)"
-              value={merchant}
-              onChangeText={setMerchant}
-              placeholderTextColor="#999"
-            />
+            <TextInput style={[styles.input, { marginBottom: 10 }]} placeholder="Merchant (optional)" value={merchant} onChangeText={setMerchant} placeholderTextColor={P.textMuted} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  onPress={() => setCategory(cat)}
-                  style={[styles.catBtn, category === cat && styles.catBtnActive]}
-                >
-                  <Text style={[styles.catBtnText, category === cat && styles.catBtnTextActive]}>
-                    {cat}
-                  </Text>
+                <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.catBtn, category === cat && styles.catBtnActive]}>
+                  <Text style={[styles.catBtnText, category === cat && styles.catBtnTextActive]}>{cat}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -172,26 +127,21 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Recent expenses */}
+          {/* Recent */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Recent</Text>
             {expenses.slice(0, 5).map((e) => (
               <View key={e.id} style={styles.expenseRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.expenseDesc}>{e.description}</Text>
-                  <Text style={styles.expenseMeta}>
-                    {e.category}
-                    {e.merchant ? ` · ${e.merchant}` : ''} ·{' '}
-                    {new Date(e.timestamp).toLocaleDateString()}
-                  </Text>
+                  <Text style={styles.expenseMeta}>{e.category}{e.merchant ? ` · ${e.merchant}` : ''} · {new Date(e.timestamp).toLocaleDateString()}</Text>
                 </View>
                 <Text style={styles.expenseAmt}>${e.amount.toFixed(2)}</Text>
               </View>
             ))}
-            {expenses.length === 0 && (
-              <Text style={styles.emptyText}>No expenses logged yet.</Text>
-            )}
+            {expenses.length === 0 && <Text style={styles.emptyText}>No expenses logged yet.</Text>}
           </View>
+
         </ScrollView>
       </View>
     </TouchableWithoutFeedback>
@@ -199,35 +149,36 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F5' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: P.offWhite },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: P.offWhite },
   scroll: { alignItems: 'center', paddingTop: 52, paddingBottom: 40 },
-  header: { fontSize: 28, fontWeight: '800', color: '#1A1A1A' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '90%', marginBottom: 16 },
-  gearBtn: { padding: 4 },
-  gearIcon: { fontSize: 22 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '90%', marginBottom: 18 },
+  appName: { fontSize: 26, fontWeight: '800', color: P.navyDeep },
+  appSub: { fontSize: 12, color: P.textMuted, marginTop: 1 },
+  gearBtn: { padding: 6, backgroundColor: P.blush, borderRadius: 20 },
+  gearIcon: { fontSize: 20 },
   summaryRow: { flexDirection: 'row', width: '90%', gap: 10, marginBottom: 14 },
-  summaryCard: { flex: 1, padding: 16, borderRadius: 18, alignItems: 'center' },
-  summaryLabel: { color: '#AAA', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  summaryCard: { flex: 1, padding: 18, borderRadius: 20, alignItems: 'center' },
+  summaryLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   summaryValue: { color: '#FFF', fontSize: 26, fontWeight: '800', marginTop: 4 },
-  card: { backgroundColor: '#FFF', width: '90%', padding: 16, borderRadius: 20, marginBottom: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#1A1A1A', marginBottom: 12 },
+  card: { backgroundColor: P.white, width: '90%', padding: 16, borderRadius: 20, marginBottom: 14, elevation: 2, shadowColor: P.navyDeep, shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: P.navyDeep, marginBottom: 12 },
   chartRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  chartLabel: { width: 90, fontSize: 11, color: '#555' },
-  barBg: { flex: 1, height: 8, backgroundColor: '#EEE', borderRadius: 4, marginHorizontal: 8 },
+  chartLabel: { width: 90, fontSize: 11, color: P.textMid },
+  barBg: { flex: 1, height: 8, backgroundColor: P.blush, borderRadius: 4, marginHorizontal: 8 },
   barFill: { height: '100%', borderRadius: 4 },
-  chartAmt: { width: 44, fontSize: 11, fontWeight: '600', textAlign: 'right', color: '#333' },
+  chartAmt: { width: 44, fontSize: 11, fontWeight: '600', textAlign: 'right', color: P.navyMid },
   row: { flexDirection: 'row', marginBottom: 10 },
-  input: { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#EEE', fontSize: 14, color: '#1A1A1A' },
-  catBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: '#EEE', marginRight: 6 },
-  catBtnActive: { backgroundColor: '#007AFF' },
-  catBtnText: { fontSize: 12, color: '#555' },
+  input: { backgroundColor: P.offWhite, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: P.blush, fontSize: 14, color: P.textDark },
+  catBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: P.blush, marginRight: 6 },
+  catBtnActive: { backgroundColor: P.navyDeep },
+  catBtnText: { fontSize: 12, color: P.textMid },
   catBtnTextActive: { color: '#FFF', fontWeight: '700' },
-  addBtn: { backgroundColor: '#007AFF', padding: 13, borderRadius: 12, alignItems: 'center' },
+  addBtn: { backgroundColor: P.navyDeep, padding: 13, borderRadius: 12, alignItems: 'center' },
   addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
-  expenseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  expenseDesc: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
-  expenseMeta: { fontSize: 11, color: '#999', marginTop: 2 },
-  expenseAmt: { fontSize: 15, fontWeight: '700', color: '#007AFF' },
-  emptyText: { color: '#AAA', fontSize: 13, textAlign: 'center', paddingVertical: 10 },
+  expenseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: P.blush },
+  expenseDesc: { fontSize: 14, fontWeight: '600', color: P.navyDeep },
+  expenseMeta: { fontSize: 11, color: P.textMuted, marginTop: 2 },
+  expenseAmt: { fontSize: 15, fontWeight: '700', color: P.rose },
+  emptyText: { color: P.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 10 },
 });
