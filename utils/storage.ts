@@ -5,7 +5,42 @@ const KEYS = {
   EXPENSES: '@spendwise_expenses',
   BUDGETS: '@spendwise_budgets',
   GOALS: '@spendwise_goals',
+  ONBOARDED: '@spendwise_onboarded',
+  USER_NAME: '@spendwise_user_name',
+  CURRENCY: '@spendwise_currency',
 };
+
+export async function isOnboarded(): Promise<boolean> {
+  const val = await AsyncStorage.getItem(KEYS.ONBOARDED);
+  return val === 'true';
+}
+
+export async function setOnboarded(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEYS.ONBOARDED, String(value));
+}
+
+export async function loadUserName(): Promise<string> {
+  return (await AsyncStorage.getItem(KEYS.USER_NAME)) ?? '';
+}
+
+export async function saveUserName(name: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.USER_NAME, name);
+}
+
+export async function loadCurrency(): Promise<string> {
+  return (await AsyncStorage.getItem(KEYS.CURRENCY)) ?? '$';
+}
+
+export async function saveCurrency(symbol: string): Promise<void> {
+  await AsyncStorage.setItem(KEYS.CURRENCY, symbol);
+}
+
+export async function clearAllData(): Promise<void> {
+  await AsyncStorage.multiRemove([
+    KEYS.EXPENSES, KEYS.BUDGETS, KEYS.GOALS,
+    KEYS.ONBOARDED, KEYS.USER_NAME, KEYS.CURRENCY,
+  ]);
+}
 
 export async function loadExpenses(): Promise<Expense[]> {
   try {

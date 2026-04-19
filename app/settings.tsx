@@ -3,6 +3,7 @@ import {
   ScrollView, TextInput, Alert, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   requestPermissions,
@@ -11,6 +12,7 @@ import {
   scheduleWeeklySummary,
   cancelWeeklySummary,
 } from '@/utils/notifications';
+import { clearAllData, loadUserName } from '@/utils/storage';
 
 const KEYS = {
   DAILY_ON: '@notif_daily_on',
@@ -19,23 +21,29 @@ const KEYS = {
 };
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [dailyOn, setDailyOn] = useState(false);
   const [weeklyOn, setWeeklyOn] = useState(false);
   const [dailyHour, setDailyHour] = useState('20');
   const [permGranted, setPermGranted] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [resetInput, setResetInput] = useState('');
+  const [showResetBox, setShowResetBox] = useState(false);
 
   useEffect(() => {
     (async () => {
       const granted = await requestPermissions();
       setPermGranted(granted);
-      const [d, w, h] = await Promise.all([
+      const [d, w, h, name] = await Promise.all([
         AsyncStorage.getItem(KEYS.DAILY_ON),
         AsyncStorage.getItem(KEYS.WEEKLY_ON),
         AsyncStorage.getItem(KEYS.DAILY_HOUR),
+        loadUserName(),
       ]);
       setDailyOn(d === 'true');
       setWeeklyOn(w === 'true');
       if (h) setDailyHour(h);
+      setUserName(name);
     })();
   }, []);
 
@@ -146,7 +154,57 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>⚠️ Reset App</Text>
+          <Text style={styles.resetDesc}>
+            This will permanently delete all your expenses, budgets, and goals, and restart the onboarding flow.
+          </Text>
+          {!showResetBox ? (
+            <TouchableOpacity onPress={() => setShowResetBox(true)} style={styles.resetTriggerBtn}>
+              <Text style={styles.resetTriggerText}>Reset & Re-onboard</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <Text style={styles.resetPrompt}>
+                Type <Text style={{ fontWeight: '800', color: '#FF3B30' }}>Onboarding</Text> to confirm:
+              </Text>
+              <TextInput
+                style={styles.resetInput}
+                placeholder="Type Onboarding"
+                value={resetInput}
+                onChangeText={setResetInput}
+                autoCapitalize="none"
+                placeholderTextColor="#CCC"
+              />
+              <View style={styles.resetActions}>
+                <TouchableOpacity
+                  onPress={() => { setShowResetBox(false); setResetInput(''); }}
+                  style={styles.cancelResetBtn}
+                >
+                  <Text style={styles.cancelResetText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmResetBtn,
+                    resetInput !== 'Onboarding' && styles.confirmResetBtnDisabled,
+                  ]}
+                  disabled={resetInput !== 'Onboarding'}
+                  onPress={async () => {
+                    await clearAllData();
+                    setResetInput('');
+                    setShowResetBox(false);
+                    router.replace('/onboarding');
+                  }}
+                >
+                  <Text style={styles.confirmResetText}>Confirm Reset</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>About</Text>
+          {userName ? <Text style={styles.aboutText}>👤 {userName}</Text> : null}
           <Text style={styles.aboutText}>SpendWise v1.0</Text>
           <Text style={styles.aboutText}>Your personal spend intelligence companion.</Text>
           <Text style={[styles.aboutText, { marginTop: 12, fontWeight: '600', color: '#555' }]}>
@@ -175,4 +233,15 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
   divider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 12 },
   aboutText: { fontSize: 13, color: '#999', marginBottom: 4 },
+  resetDesc: { fontSize: 13, color: '#666', marginBottom: 14, lineHeight: 18 },
+  resetTriggerBtn: { backgroundColor: '#FFE5E5', padding: 12, borderRadius: 12, alignItems: 'center' },
+  resetTriggerText: { color: '#FF3B30', fontWeight: '700', fontSize: 14 },
+  resetPrompt: { fontSize: 13, color: '#555', marginBottom: 8 },
+  resetInput: { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 11, borderWidth: 1, borderColor: '#EEE', fontSize: 14, color: '#1A1A1A', marginBottom: 10 },
+  resetActions: { flexDirection: 'row', gap: 10 },
+  cancelResetBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#EEE', alignItems: 'center' },
+  cancelResetText: { fontWeight: '700', color: '#555' },
+  confirmResetBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#FF3B30', alignItems: 'center' },
+  confirmResetBtnDisabled: { backgroundColor: '#FFAAAA' },
+  confirmResetText: { fontWeight: '700', color: '#FFF' },
 });
