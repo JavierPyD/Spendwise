@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Expense, Budget, SavingsGoal } from '@/types';
 import * as Storage from '@/utils/storage';
+import { sendBudgetWarning } from '@/utils/notifications';
 
 interface AppContextType {
   expenses: Expense[];
@@ -46,6 +47,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const updated = [newExpense, ...prev];
       Storage.saveExpenses(updated);
       return updated;
+    });
+    // Check budget thresholds after adding
+    setBudgets((currentBudgets) => {
+      const budget = currentBudgets.find((b) => b.category === data.category);
+      if (budget) {
+        setExpenses((currentExpenses) => {
+          const now = new Date();
+          const monthSpend = currentExpenses
+            .filter((e) => {
+              const d = new Date(e.timestamp);
+              return (
+                e.category === data.category &&
+                d.getMonth() === now.getMonth() &&
+                d.getFullYear() === now.getFullYear()
+              );
+            })
+            .reduce((s, e) => s + e.amount, 0) + newExpense.amount;
+          const pct = monthSpend / budget.monthlyLimit;
+          if (pct >= 0.8 && pct < 1) {
+            sendBudgetWarning(data.category, monthSpend, budget.monthlyLimit);
+          } else if (pct >= 1) {
+            sendBudgetWarning(data.category, monthSpend, budget.monthlyLimit);
+          }
+          return currentExpenses;
+        });
+      }
+      return currentBudgets;
     });
   }, []);
 

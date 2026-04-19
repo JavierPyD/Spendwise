@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES, Category } from '@/types';
 
 export default function DashboardScreen() {
   const { expenses, budgets, addExpense, isLoading } = useApp();
+  const router = useRouter();
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [merchant, setMerchant] = useState('');
@@ -75,7 +77,12 @@ export default function DashboardScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.header}>SpendWise</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.header}>SpendWise</Text>
+            <TouchableOpacity onPress={() => router.push('/settings')} style={styles.gearBtn}>
+              <Text style={styles.gearIcon}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Summary cards */}
           <View style={styles.summaryRow}>
@@ -195,7 +202,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F0F2F5' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { alignItems: 'center', paddingTop: 52, paddingBottom: 40 },
-  header: { fontSize: 28, fontWeight: '800', marginBottom: 16, color: '#1A1A1A' },
+  header: { fontSize: 28, fontWeight: '800', color: '#1A1A1A' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '90%', marginBottom: 16 },
+  gearBtn: { padding: 4 },
+  gearIcon: { fontSize: 22 },
   summaryRow: { flexDirection: 'row', width: '90%', gap: 10, marginBottom: 14 },
   summaryCard: { flex: 1, padding: 16, borderRadius: 18, alignItems: 'center' },
   summaryLabel: { color: '#AAA', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
