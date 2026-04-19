@@ -14,7 +14,7 @@
     "android": {
       "package": "com.perez.spendwise",
       "adaptiveIcon": {
-        "backgroundColor": "#1A1A1A",
+        "backgroundColor": "#0D1E4C",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "edgeToEdgeEnabled": true,
@@ -26,15 +26,16 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#0D1E4C",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#0B1B32"
           }
         }
       ]
